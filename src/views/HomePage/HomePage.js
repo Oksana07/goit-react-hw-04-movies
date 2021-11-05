@@ -1,69 +1,47 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, Redirect } from 'react';
+import Loader from 'react-loader-spinner';
+import moviesFetchApi from '../../services/moviesFetchApi';
+import Status from '../../services/statusLoader';
+import PageList from '../../components/PageList';
 
-import Loader from "../../components/Loader";
-import Status from "../../services/status";
-import moviesApi from "../../services/moviesApi";
-import ErrorView from "../NotFoundView";
-import s from "./HomePage.module.css";
-import noImageFound from "../../images/not_found.gif";
+export default function HomePage() {
+    const [movies, setMovies] = useState(null);
+    const [status, setStatus] = useState(Status.IDLE);
+    const [error, setError] = useState(null);
 
-function HomePage() {
-  const [movies, setMovies] = useState(null);
-  const [error, setError] = useState(null);
-  const [status, setStatus] = useState(Status.IDLE);
+    useEffect(() => {
+        setStatus(Status.PENDING);
+        moviesFetchApi
+            .getPopularMovies()
+            .then(results => {
+                setMovies(results);
+                setStatus(Status.RESOLVED);
+            })
+            .catch(error => {
+                console.log(error);
+                setError(error);
+                setStatus(Status.REJECTED);
+            });
+    }, [error]);
 
-  useEffect(() => {
-    setStatus(Status.PENDING);
-    moviesApi
-      .getPopularMovies()
-      .then((results) => {
-        setMovies(results);
-        setStatus(Status.RESOLVED);
-      })
-      .catch((error) => {
-        console.log(error);
-        setError(error);
-        setStatus(Status.REJECTED);
-      });
-  }, [error]);
-
-  return (
-    <main className={s.container}>
-      {status === Status.PENDING && <Loader />}
-
-      {status === Status.REJECTED && <ErrorView />}
-
-      {status === Status.RESOLVED && (
-        <>
-          <ul className={s.moviesList}>
-            {movies.map(({ id, poster_path, title }) => (
-              <li key={id} className={s.moviesItem}>
-                <Link
-                  to={{
-                    pathname: `movies/${id}`,
-                  }}
-                >
-                  <img
-                    src={
-                      poster_path
-                        ? `https://image.tmdb.org/t/p/w500/${poster_path}`
-                        : noImageFound
-                    }
-                    alt={title}
-                    className={s.poster}
-                  />
-                </Link>
-                <div className={s.titleBox}>
-                  <p className={s.title}>{title}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-    </main>
-  );
+    return (
+        <main>
+            {status === Status.PENDING && (
+                <Loader
+                    className="Spinner"
+                    type="Circles"
+                    color="#ca2b60"
+                    height={300}
+                    width={300}
+                />
+            )}
+            {status === Status.REJECTED && <Redirect to="/error" />}
+            {status === Status.RESOLVED && (
+                <>
+                    <h1 className="Title"> Trending today</h1>
+                    <PageList movies={movies} url={'movies'} />
+                </>
+            )}
+        </main>
+    );
 }
-
-export default HomePage;

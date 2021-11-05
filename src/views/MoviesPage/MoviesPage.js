@@ -1,104 +1,85 @@
-import { useState, useEffect } from "react";
-import { Link, useRouteMatch, useHistory, useLocation } from "react-router-dom";
-import { toast } from "react-toastify";
-
-import moviesApi from "../../services/moviesApi";
-import ErrorView from "../NotFoundView";
-import Loader from "../../components/Loader";
-import SearchBar from "../../components/SearchBar";
-
-import noImageFound from "../../images/not_found.gif";
-import s from "./MoviesPage.module.css";
-import Status from "../../services/status";
+import { useState, useEffect } from 'react';
+import {
+    Redirect,
+    useRouteMatch,
+    useHistory,
+    useLocation,
+} from 'react-router-dom';
+import { toast } from 'react-toastify';
+import Loader from 'react-loader-spinner';
+import Status from '../../services/statusLoader';
+import moviesFetchApi from '../../services/moviesFetchApi';
+import SearchBar from '../../components/SearchBar';
+import PageList from '../../components/PageList';
 
 export default function MoviesPage() {
-  const history = useHistory();
-  const location = useLocation();
-  const { url } = useRouteMatch();
-  const [query, setQuery] = useState("");
-  const [movies, setMovies] = useState(null);
-  const [status, setStatus] = useState(Status.IDLE);
-  const [error, setError] = useState(null);
+    const history = useHistory();
+    const location = useLocation();
+    const { url } = useRouteMatch();
 
-  const handleFormSubmit = (newQuery) => {
-    if (newQuery === query) return;
+    const [query, setQuery] = useState('');
+    const [status, setStatus] = useState(Status.IDLE);
+    const [movies, setMovies] = useState([]);
+    const [error, setError] = useState(null);
 
-    setQuery(newQuery);
-    setMovies(null);
-    setStatus(Status.IDLE);
-    history.push({ ...location, search: `query=${newQuery}` });
-  };
+    const handleFormSubmit = newQuery => {
+        if (newQuery === query) return;
 
-  useEffect(() => {
-    if (location.search === "") {
-      return;
-    }
+        setQuery(newQuery);
+        setMovies(null);
+        setStatus(Status.IDLE);
+        history.push({ ...location, search: `query=${newQuery}` });
+    };
 
-    const newSearch = new URLSearchParams(location.search).get("query");
-    setQuery(newSearch);
-  }, [location.search]);
+    useEffect(() => {
+        if (location.search === '') return;
 
-  useEffect(() => {
-    if (!query) return;
+        const newSearch = new URLSearchParams(location.search).get('query');
+        setQuery(newSearch);
+    }, [location.search]);
 
-    setStatus(Status.PENDING);
+    useEffect(() => {
+        if (!query) return;
 
-    moviesApi
-      .getMoviesByKeyWord(query)
-      .then((results) => {
-        if (results.length === 0) {
-          toast.error(`No movies found on ${query}.`);
-          setStatus(Status.REJECTED);
-          return;
-        }
+        setStatus(Status.PENDING);
 
-        setMovies(results);
-        setStatus(Status.RESOLVED);
-      })
-      .catch((error) => {
-        console.log(error);
-        setError(error);
-        setStatus(Status.REJECTED);
-      });
-  }, [query, error]);
+        moviesFetchApi
+            .getSearchMoviesByWord(query)
+            .then(results => {
+                if (results.length === 0) {
+                    toast.error(`No movies found on ${query}.`);
+                    setStatus(Status.REJECTED);
+                    return;
+                }
 
-  return (
-    <>
-      <SearchBar onSubmit={handleFormSubmit} />
+                setMovies(results);
+                setStatus(Status.RESOLVED);
+            })
+            .catch(error => {
+                console.log(error);
+                setError(error);
+                setStatus(Status.REJECTED);
+            });
+    }, [query, error]);
 
-      {status === Status.PENDING && <Loader />}
-
-      {status === Status.REJECTED && <ErrorView />}
-
-      {status === Status.RESOLVED && (
+    return (
         <>
-          <ul className={s.moviesList}>
-            {movies.map((movie) => (
-              <li key={movie.id} className={s.moviesItem}>
-                <Link
-                  to={{
-                    pathname: `${url}/${movie.id}`,
-                    state: { from: location },
-                  }}
-                >
-                  <img
-                    src={
-                      movie.poster_path
-                        ? `https://image.tmdb.org/t/p/w500/${movie.poster_path}`
-                        : noImageFound
-                    }
-                    alt={movie.title}
-                    className={s.poster}
-                  />
-                </Link>
-                <div className={s.titleBox}>
-                  <p className={s.title}>{movie.title}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
+            <SearchBar onSubmit={handleFormSubmit} />
+
+            {status === Status.PENDING && (
+                <Loader
+                    className="Spinner"
+                    type="Circles"
+                    color="#ca2b60"
+                    height={300}
+                    width={300}
+                />
+            )}
+
+            {status === Status.REJECTED && <Redirect to="/error" />}
+            {status === Status.RESOLVED && (
+                <PageList movies={movies} url={url} location={location} />
+            )}
         </>
-      )}
-    </>
-  );
+    );
 }

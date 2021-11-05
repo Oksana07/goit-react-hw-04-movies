@@ -1,134 +1,152 @@
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy } from 'react';
 import {
-  NavLink,
-  useParams,
-  useRouteMatch,
-  Route,
-  useHistory,
-  useLocation,
-} from "react-router-dom";
+    Redirect,
+    NavLink,
+    useParams,
+    useRouteMatch,
+    Route,
+    useHistory,
+    useLocation,
+} from 'react-router-dom';
+import moviesFetchApi from '../../services/moviesFetchApi';
+import baseImageURL from '../../services/baseImageURL';
+import noImageFound from '../../images/not_found.gif';
+import Loader from 'react-loader-spinner';
+import Status from '../../services/statusLoader';
+import s from './MovieDetailsPage.module.css';
+import MovieDetailsMainInfo from './MovieDetailsMainInfo';
 
-import moviesApi from "../../services/moviesApi";
-import Status from "../../services/status";
-import baseImageURL from "../../services/baseImageURL";
-import ErrorView from "../NotFoundView";
-import Loader from "../../components/Loader";
-import noImageFound from "../../images/not_found.gif";
-import s from "./MovieDetailsPage.module.css";
-
-const Cast = lazy(() => import("../Cast" /* webpackChunkName: "cast"*/));
+const Cast = lazy(() =>
+    import('../../components/Cast' /* webpackChunkName: "cast"*/),
+);
 const Reviews = lazy(() =>
-  import("../Reviews" /* webpackChunkName: "reviews"*/)
+    import('../../components/Reviews' /* webpackChunkName: "reviews"*/),
 );
 
 export default function MovieDetailsPage() {
-  const history = useHistory();
-  const location = useLocation();
-  const [movie, setMovie] = useState(null);
-  const { movieId } = useParams();
-  const { url, path } = useRouteMatch();
-  const [error, setError] = useState(null);
-  const [status, setStatus] = useState(Status.IDLE);
+    const location = useLocation();
+    const history = useHistory();
+    const { movieId } = useParams();
+    const { url, path } = useRouteMatch();
 
-  useEffect(() => {
-    setStatus(Status.PENDING);
-    moviesApi
-      .getMovieById(movieId)
-      .then(({ poster_path, original_title, popularity, overview, genres }) => {
-        setMovie({
-          src: poster_path
-            ? `${baseImageURL}${poster_path}`
-            : `${noImageFound}`,
-          title: original_title,
-          score: popularity.toFixed(1),
-          overview,
-          genres,
-        });
-        setStatus(Status.RESOLVED);
-      })
-      .catch((error) => {
-        console.log(error);
-        setError(error);
-        setStatus(Status.REJECTED);
-      });
-  }, [movieId, error]);
+    const [error, setError] = useState(null);
+    const [status, setStatus] = useState(Status.IDLE);
+    const [movie, setMovie] = useState(null);
 
-  const goBack = () => {
-    history.push(location?.state?.from ?? "/");
-  };
+    useEffect(() => {
+        setStatus(Status.PENDING);
+        moviesFetchApi
+            .getMovieById(movieId)
+            .then(
+                ({
+                    poster_path,
+                    original_title,
+                    popularity,
+                    overview,
+                    genres,
+                }) => {
+                    setMovie({
+                        src: poster_path
+                            ? `${baseImageURL}${poster_path}`
+                            : `${noImageFound}`,
+                        title: original_title,
+                        score: popularity.toFixed(1),
+                        overview,
+                        genres,
+                    });
+                    setStatus(Status.RESOLVED);
+                },
+            )
+            .catch(error => {
+                console.log(error);
+                setError(error);
+                setStatus(Status.REJECTED);
+            });
+    }, [movieId, error]);
 
-  return (
-    <main className={s.container}>
-      <button onClick={goBack} type="button" className={s.btn}>
-        &#171;
-      </button>
+    const goBack = () => {
+        history.push(location?.state?.from ?? '/');
+    };
 
-      {status === Status.PENDING && <Loader />}
-
-      {status === Status.REJECTED && <ErrorView />}
-
-      {status === Status.RESOLVED && (
+    return (
         <>
-          <div className={s.wrapper}>
-            <img className={s.image} src={movie.src} alt={movie.title} />
-            <div className={s.description}>
-              <h2 className={s.movieTitle}>{movie.title}</h2>
-              <h3 className={s.title}>Score</h3>
-              <p className={s.info}>{movie.score}</p>
-              <h3 className={s.title}>About</h3>
-              <p className={s.info}>{movie.overview}</p>
-              <h3 className={s.title}>Genres</h3>
-              <ul className={s.genre}>
-                {movie.genres.map((genre) => (
-                  <li key={genre.id}>{genre.name}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-          <ul className={s.submenu}>
-            <li>
-              <NavLink
-                to={{
-                  pathname: `${url}/cast`,
-                  state: {
-                    from: location.state ? location.state.from : "/",
-                  },
-                }}
-                className={s.submenuItem}
-                activeClassName={s.activeSubmenuItem}
-              >
-                Cast
-              </NavLink>
-            </li>
-            <li>
-              <NavLink
-                to={{
-                  pathname: `${url}/reviews`,
-                  state: {
-                    from: location.state ? location.state.from : "/",
-                  },
-                }}
-                className={s.submenuItem}
-                activeClassName={s.activeSubmenuItem}
-              >
-                Reviews
-              </NavLink>
-            </li>
-          </ul>
+            <button type="button" className={s.btn} onClick={goBack}>
+                Go Back
+            </button>
+            <main className={s.container}>
+                {status === Status.PENDING && (
+                    <Loader
+                        className="Spinner"
+                        type="Circles"
+                        color="#ca2b60"
+                        height={300}
+                        width={300}
+                    />
+                )}
 
-          {
-            <Suspense fallback={<Loader />}>
-              <Route path={`${path}/cast`}>
-                {status === Status.RESOLVED && <Cast />}
-              </Route>
+                {status === Status.REJECTED && <Redirect to="/error" />}
+                {status === Status.RESOLVED && (
+                    <>
+                        <MovieDetailsMainInfo movie={movie} />
 
-              <Route path={`${path}/reviews`}>
-                {status === Status.RESOLVED && <Reviews />}
-              </Route>
-            </Suspense>
-          }
+                        <ul className={s.subMenu}>
+                            <li>
+                                <NavLink
+                                    to={{
+                                        pathname: `${url}/cast`,
+                                        state: {
+                                            from: location.state
+                                                ? location.state.from
+                                                : '/',
+                                        },
+                                    }}
+                                    className={s.subMenuItem}
+                                    activeClassName={s.activeSubMenuItem}
+                                >
+                                    Cast
+                                </NavLink>
+                            </li>
+                            <li>
+                                <NavLink
+                                    to={{
+                                        pathname: `${url}/reviews`,
+                                        state: {
+                                            from: location.state
+                                                ? location.state.from
+                                                : '/',
+                                        },
+                                    }}
+                                    className={s.subMenuItem}
+                                    activeClassName={s.activeSubMenuItem}
+                                >
+                                    Reviews
+                                </NavLink>
+                            </li>
+                        </ul>
+
+                        {
+                            <Suspense
+                                fallback={
+                                    <Loader
+                                        className="Spinner"
+                                        type="Circles"
+                                        color="#ca2b60"
+                                        height={300}
+                                        width={300}
+                                    />
+                                }
+                            >
+                                <Route path={`${path}/cast`}>
+                                    <Cast />
+                                </Route>
+                                <Route path={`${path}/reviews`}>
+                                    <Reviews />
+                                </Route>
+                            </Suspense>
+                        }
+                    </>
+                )}
+            </main>
         </>
-      )}
-    </main>
-  );
+    );
 }
